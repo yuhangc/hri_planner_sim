@@ -117,6 +117,10 @@ class Actor:
         return self.x, self.y, self.th
 
     def plot(self, ax):
+        """
+        Plot the graphics representation of the human, a circle with orientation
+        :param ax: the axis to plot on
+        """
         if self.footprint is None:
             # create new plot
             self.footprint = ax.add_patch(
@@ -138,6 +142,10 @@ class Actor:
             self.fp_orientation[0].set_ydata(y_plot)
 
     def plot_traj(self, ax):
+        """
+        Plot the trajectory for following
+        :param ax: the axis to plot on
+        """
         if self.path is None:
             raise Exception("No path set yet!")
 
