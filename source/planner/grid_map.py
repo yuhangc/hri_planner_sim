@@ -44,6 +44,12 @@ class StochOccupancyGrid2D(object):
         self.window_size = window_size
         self.thresh = thresh
 
+    def get_grid_pos(self, x, y):
+        grid_x = int((x - self.origin_x) / self.resolution)
+        grid_y = int((y - self.origin_y) / self.resolution)
+
+        return grid_x, grid_y
+
     def is_free(self, state):
         # combine the probabilities of each cell by assuming independence
         # of each estimation
@@ -54,12 +60,26 @@ class StochOccupancyGrid2D(object):
             for dy in range(lower, upper + 1):
                 x = state[0] + dx * self.resolution
                 y = state[1] + dy * self.resolution
-                grid_x = int((x - self.origin_x) / self.resolution)
-                grid_y = int((y - self.origin_y) / self.resolution)
+                grid_x, grid_y = self.get_grid_pos(x, y)
                 if 0 < grid_x < self.width and 0 < grid_y < self.height:
                     p_total *= (1.0 - max(0.0, float(self.probs[grid_y * self.width + grid_x]) / 100.0))
 
         return (1.0 - p_total) < self.thresh
+
+    def from_obstacles(self, obstacles):
+        """
+        Construct stochastic occupancy grid from list of rectangular obstacles
+        :param obstacles: list of rectangular obstacles
+        """
+        # clear the occupancy grid
+        self.probs = np.zeros_like(self.probs)
+
+        for obs in obstacles:
+            x_start, y_start = self.get_grid_pos(obs[0][0], obs[0][1])
+            x_end, y_end = self.get_grid_pos(obs[1][0], obs[1][1])
+            for grid_x in range(x_start, x_end+1):
+                for grid_y in range(y_start, y_end+1):
+                    self.probs[grid_y * self.width + grid_x] = 100
 
     def plot(self, fig_num=0):
         fig = plt.figure(fig_num)
@@ -70,7 +90,9 @@ class StochOccupancyGrid2D(object):
             gx = i % self.width
             x = gx * self.resolution + self.origin_x
             y = gy * self.resolution + self.origin_y
-            if not self.is_free((x, y)):
+            # if not self.is_free((x, y)):
+            #     pts.append((x, y))
+            if self.probs[i] > self.thresh:
                 pts.append((x, y))
         pts_array = np.array(pts)
         plt.scatter(pts_array[:, 0], pts_array[:, 1], color="red", zorder=15, label='planning resolution')
