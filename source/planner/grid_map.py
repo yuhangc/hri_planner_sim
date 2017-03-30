@@ -33,6 +33,10 @@ class DetOccupancyGrid2D(object):
 
 
 class StochOccupancyGrid2D(object):
+    """
+    2D stochastic occupancy grid, each cell stores a probability of the
+    cell being occupied
+    """
     def __init__(self, resolution, width, height, origin_x, origin_y,
                  window_size, probs, thresh=0.5):
         self.resolution = resolution
@@ -44,27 +48,63 @@ class StochOccupancyGrid2D(object):
         self.window_size = window_size
         self.thresh = thresh
 
+        # variable used to store if states are free
+        # zero is not free
+        self.free = np.zeros((self.width, self.height), dtype=int)
+
     def get_grid_pos(self, x, y):
         grid_x = int((x - self.origin_x) / self.resolution)
         grid_y = int((y - self.origin_y) / self.resolution)
 
         return grid_x, grid_y
 
-    def is_free(self, state):
-        # combine the probabilities of each cell by assuming independence
-        # of each estimation
+    def _is_free(self, state, physical_state=True, window_size=None):
+        """
+        Check if a state is free by looking at a certain window around the state
+        Combine the probabilities of each cell by assuming independence of each
+        estimation
+        """
+        # TODO: to be optimized
+        # use default window size if not specified
+        if window_size is None:
+            window_size = self.window_size
+
         p_total = 1.0
-        lower = -int(round((self.window_size - 1) / 2))
-        upper = int(round((self.window_size - 1) / 2))
+        lower = -int(round((window_size - 1) / 2))
+        upper = int(round((window_size - 1) / 2))
         for dx in range(lower, upper + 1):
             for dy in range(lower, upper + 1):
-                x = state[0] + dx * self.resolution
-                y = state[1] + dy * self.resolution
-                grid_x, grid_y = self.get_grid_pos(x, y)
+                if physical_state:
+                    # convert to grid state
+                    x = state[0] + dx * self.resolution
+                    y = state[1] + dy * self.resolution
+                    grid_x, grid_y = self.get_grid_pos(x, y)
+                else:
+                    grid_x = state[0] + dx
+                    grid_y = state[1] + dy
                 if 0 < grid_x < self.width and 0 < grid_y < self.height:
                     p_total *= (1.0 - max(0.0, float(self.probs[grid_y * self.width + grid_x]) / 100.0))
 
         return (1.0 - p_total) < self.thresh
+
+    def is_free(self, state):
+        """
+        Check if a state is free, directly return the pre-computed self.free
+        """
+        grid_x, grid_y = self.get_grid_pos(state[0], state[1])
+        return self.free[grid_x, grid_y] > 0
+
+    def init_map_free(self):
+        """
+        Pre-compute if the state is free for all states in the map
+        Result stored in self.free
+        """
+        for x in range(self.width):
+            for y in range(self.height):
+                if self._is_free((x, y), physical_state=False):
+                    self.free[x, y] = 1
+                else:
+                    self.free[x, y] = 0
 
     def from_obstacles(self, obstacles):
         """

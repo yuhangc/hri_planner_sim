@@ -23,6 +23,7 @@ if __name__ == "__main__":
     occupancy = StochOccupancyGrid2D(map_resolution, int(width / map_resolution), int(height / map_resolution),
                                      0, 0, int(plan_resolution/map_resolution) * 4, probs)
     occupancy.from_obstacles(obstacles)
+    occupancy.init_map_free()
 
     # create a nav function planner and an astar planner
     # planner_astar = AstarPlanner((0, 0), (10, 10), x_init, x_goal, occupancy)
