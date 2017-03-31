@@ -3,7 +3,7 @@ import numpy as np
 from grid_map import StochOccupancyGrid2D
 from global_planners import AstarPlanner, NavFuncitonPlanner
 
-if __name__ == "__main__":
+def test_global_planner():
     # list of obstacles
     obstacles = [((6, 6), (8, 7)), ((2, 1), (4, 2)), ((2, 4), (4, 6)), ((6, 2), (8, 4))]
     width = 10
@@ -12,7 +12,7 @@ if __name__ == "__main__":
     plan_resolution = 0.25
 
     # generate initial probabilities
-    probs = -np.ones((int(width * height / map_resolution**2 + 0.5), ))
+    probs = -np.ones((int(width * height / map_resolution ** 2 + 0.5),))
     # probs = -np.ones((int(height / map_resolution), int(width / map_resolution)))
 
     # set goals
@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     # create a 2D stochastic occupancy grid
     occupancy = StochOccupancyGrid2D(map_resolution, int(width / map_resolution), int(height / map_resolution),
-                                     0, 0, int(plan_resolution/map_resolution) * 4, probs)
+                                     0, 0, int(plan_resolution / map_resolution) * 4, probs)
     occupancy.from_obstacles(obstacles)
     occupancy.init_map_free()
 
@@ -32,11 +32,25 @@ if __name__ == "__main__":
     # solve for path
     # planner_astar.solve(verbose=True)
     planner_nav.solve(verbose=True)
-    planner_nav.construct_path()
+    planner_nav.reconstruct_path()
 
     # plot result
     # planner_astar.visualize_path()
     planner_nav.visualize_path()
 
-    planner_nav.construct_path(np.array([7, 5]))
+    planner_nav.reconstruct_path(np.array([7, 5]))
     planner_nav.visualize_path()
+
+
+def test_dwa_planner():
+    # the environment
+    obstacles = [((6, 6), (8, 7)), ((2, 1), (4, 2)), ((2, 4), (4, 6)), ((6, 2), (8, 4))]
+    width = 10
+    height = 10
+    map_resolution = 0.05
+    plan_resolution = 0.25
+
+    # construct a global planner
+
+if __name__ == "__main__":
+    test_global_planner()

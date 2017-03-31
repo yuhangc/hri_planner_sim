@@ -121,8 +121,7 @@ class StochOccupancyGrid2D(object):
                 for grid_y in range(y_start, y_end+1):
                     self.probs[grid_y * self.width + grid_x] = 100
 
-    def plot(self, fig_num=0):
-        fig = plt.figure(fig_num)
+    def plot(self, ax):
         pts = []
         for i in range(len(self.probs)):
             # convert i to (x,y)
@@ -135,4 +134,4 @@ class StochOccupancyGrid2D(object):
             if self.probs[i] > self.thresh:
                 pts.append((x, y))
         pts_array = np.array(pts)
-        plt.scatter(pts_array[:, 0], pts_array[:, 1], color="red", zorder=15, label='planning resolution')
+        ax.scatter(pts_array[:, 0], pts_array[:, 1], color="red", zorder=15, label='planning resolution')

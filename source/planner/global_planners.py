@@ -2,18 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from collections import deque
-
-from grid_map import StochOccupancyGrid2D
-
-
-def distance(x1, x2):
-    """
-    Computes the euclidean distance between two states
-    :param x1: first state tuple
-    :param x2: second state tuple
-    :return: Float euclidean distance
-    """
-    return np.linalg.norm(np.array(x1) - np.array(x2))
+from utils import distance
 
 
 class GlobalPlannerBase:
@@ -35,22 +24,37 @@ class GlobalPlannerBase:
         self.x_init = self.snap_to_grid(x_init)
         self.x_goal = self.snap_to_grid(x_goal)
 
-        self.path = None  # stores the global path to goal
+        # stores the global path to goal
+        self.path = None
 
-    def set_x_init(self, x_init):
+        # flag that indicates whether there is a plan
+        self.has_plan = False
+
+    def _set_x_init(self, x_init):
         # raise error if not free
         if not self.is_free(x_init):
             raise Exception("Initial state has to be in free space!")
         self.x_init = self.snap_to_grid(x_init)
 
-    def set_x_goal(self, x_goal):
+    def _set_x_goal(self, x_goal):
         # raise error if not free
         if not self.is_free(x_goal):
             raise Exception("Goal state has to be in free space!")
         self.x_goal = self.snap_to_grid(x_goal)
 
-    def update_occupancy(self, new_occupancy):
-        self.occupancy = new_occupancy
+    def _update_occupancy(self, occupancy):
+        self.occupancy = occupancy
+
+    def reset(self, x_init=None, x_goal=None, occupancy=None):
+        """
+        Optionally reset the initial state, goal state and occupancy map
+        """
+        if x_init is not None:
+            self._set_x_init(x_init)
+        if x_goal is not None:
+            self._set_x_goal(x_goal)
+        if occupancy is not None:
+            self._update_occupancy()
 
     def is_free(self, x):
         """
@@ -90,16 +94,20 @@ class GlobalPlannerBase:
         """
         raise NotImplementedError("solve method must be overriden by a subclass!")
 
-    def visualize_path(self):
+    def get_path(self):
+        """
+        returns the planned path, directly return self.path
+        """
+        return self.path
+
+    def visualize_path(self, ax):
         """
         Plots the path found in self.path and the obstacles
         """
         if not self.path:
             return
 
-        fig = plt.figure()
-
-        self.occupancy.plot(fig.number)
+        self.occupancy.plot(ax)
 
         solution_path = np.array(self.path) * self.resolution
         plt.plot(solution_path[:, 0], solution_path[:, 1],
@@ -223,6 +231,9 @@ class AstarPlanner(GlobalPlannerBase):
 
 
 class NavFuncitonPlanner(GlobalPlannerBase):
+    """
+    A global planner that calculates the navigation function given a goal state.
+    """
     def __init__(self, statespace_lo, statespace_hi, x_init=None, x_goal=None, occupancy=None, resolution=1.0):
         GlobalPlannerBase.__init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, resolution)
 
@@ -231,15 +242,12 @@ class NavFuncitonPlanner(GlobalPlannerBase):
         self.dim = len(self.statespace_shape)
 
         # nav function stores the next state to go for each state
-        self.nav_func = np.zeros(np.hstack((self.statespace_shape, self.dim)), dtype=int)
+        self.nav_func = np.zeros(self.statespace_shape, dtype=int)
         self.shortest = -np.ones(self.statespace_shape)
 
         # connected neighbors
         self.dx = np.array([[1, 0], [0, 1], [0, -1], [-1, 0],
                             [1, 1], [1, -1], [-1, 1], [-1, -1]])
-
-        # flag that indicates whether there is a plan
-        self.has_plan = False
 
     def solve(self, max_iter=None, verbose=False):
         """
@@ -263,14 +271,19 @@ class NavFuncitonPlanner(GlobalPlannerBase):
                 if self.is_free(x_new) and self.shortest[x_new] < 0:
                     # expand to x_new if it is free and not visited before
                     self.shortest[x_new] = self.shortest[tuple(x_curr)] + distance(x_curr, x_new)
-                    self.nav_func[x_new] = x_curr
+                    self.nav_func[x_new] = k
                     node_list.append(np.array(x_new))
 
         self.has_plan = True
 
         return True
 
-    def construct_path(self, x_init=None):
+    def reconstruct_path(self, x_init=None):
+        """
+        (Re)construct a path from a given initial state to the goal state
+        :param x_init: physical (x, y) of the initial state
+        :return: the constructed path self.path
+        """
         if x_init is not None:
             self.x_init = self.snap_to_grid(x_init)
 
@@ -282,5 +295,25 @@ class NavFuncitonPlanner(GlobalPlannerBase):
         x_curr = self.x_init
 
         while np.any(x_curr != self.x_goal):
-            x_curr = self.nav_func[tuple(x_curr)]
+            dx = self.dx[self.nav_func[tuple(x_curr)]]
+            x_curr = self.path[-1] - dx
             self.path.append(x_curr)
+
+        return self.path
+
+    def get_plan(self, x=None, interpolate=False):
+        """
+        Returns the navigation function and the shortest dist to goal
+        :param x: state, optional input
+        :param interpolate: whether to interpolate between states
+        :return: the whole plan or plan of a specific state
+        """
+        if x is None:
+            return self.nav_func, self.shortest
+        else:
+            if interpolate:
+                # TODO: to be implemented
+                pass
+            else:
+                grid_x, grid_y = self.snap_to_grid(x)
+                return self.nav_func[grid_x, grid_y], self.shortest[grid_x, grid_y]
