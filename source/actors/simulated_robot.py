@@ -3,7 +3,7 @@ from source.planner.utils import *
 
 
 class SimulatedDetRobot(Actor):
-    def __init__(self, fp_radius=0.2, properties=None):
+    def __init__(self, fp_radius=0.2, pose_init=(0.0, 0.0, 0.0), properties=None):
         Actor.__init__(self, fp_radius)
 
         # do not follow trajectory
@@ -12,6 +12,9 @@ class SimulatedDetRobot(Actor):
         # current velocity
         self.vel_curr = np.array([0.0, 0.0])
         self.vel_goal = np.array([0.0, 0.0])
+
+        # set pose
+        self.__set_pose__(pose_init)
 
         # set properties
         if properties is None:
@@ -22,6 +25,9 @@ class SimulatedDetRobot(Actor):
 
     def set_velocity(self, vel_goal_new):
         self.vel_goal = vel_goal_new
+
+    def get_velocity(self):
+        return self.vel_curr
 
     def update(self, dt=0.0):
         """

@@ -110,17 +110,14 @@ class GlobalPlannerBase:
         self.occupancy.plot(ax)
 
         solution_path = np.array(self.path) * self.resolution
-        plt.plot(solution_path[:, 0], solution_path[:, 1],
+        ax.plot(solution_path[:, 0], solution_path[:, 1],
                  color="green", linewidth=2, label="solution path", zorder=10)
-        plt.scatter([self.x_init[0] * self.resolution, self.x_goal[0] * self.resolution],
+        ax.scatter([self.x_init[0] * self.resolution, self.x_goal[0] * self.resolution],
                     [self.x_init[1] * self.resolution, self.x_goal[1] * self.resolution],
                     color="green", s=30, zorder=10)
-        plt.annotate(r"$x_{init}$", np.array(self.x_init) * self.resolution + np.array([.2, 0]), fontsize=16)
-        plt.annotate(r"$x_{goal}$", np.array(self.x_goal) * self.resolution + np.array([.2, 0]), fontsize=16)
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.03), fancybox=True, ncol=3)
-
-        plt.axis('equal')
-        plt.show()
+        ax.annotate(r"$x_{init}$", np.array(self.x_init) * self.resolution + np.array([.2, 0]), fontsize=16)
+        ax.annotate(r"$x_{goal}$", np.array(self.x_goal) * self.resolution + np.array([.2, 0]), fontsize=16)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.03), fancybox=True, ncol=3)
 
 
 class AstarPlanner(GlobalPlannerBase):

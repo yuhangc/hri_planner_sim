@@ -1,7 +1,7 @@
 import numpy as np
 
 # tolerance
-TOL = 1e-5
+TOL = 1e-3
 
 
 # euclidean distance

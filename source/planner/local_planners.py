@@ -63,13 +63,13 @@ class LocalPlannerBase:
 
 
 class DynamicWindowPlanner(LocalPlannerBase):
-    def __init__(self, dt, horizon, occupancy=None, global_plan=None, dyn_obstacles=None,
+    def __init__(self, dt, horizon, occupancy=None, global_planner=None, dyn_obstacles=None,
                  robot_radius=None, config_file_path=None):
         """
         Initialize the dynamic window motion planner
         :param config_file_path: file path to the planner configuration file
         """
-        LocalPlannerBase.__init__(self, dt, horizon, occupancy, global_plan, dyn_obstacles)
+        LocalPlannerBase.__init__(self, dt, horizon, occupancy, global_planner, dyn_obstacles)
         self.robot_radius = robot_radius
 
         if config_file_path is None:
@@ -81,7 +81,7 @@ class DynamicWindowPlanner(LocalPlannerBase):
             # set weights for cost functions
             self.w_costs = {'heading': 2.0,
                             'collision': 0.2,
-                            'velocity': 0.2}
+                            'velocity': 1.0}
 
             # velocity discretization
             self.vel_inc = np.array([0.05, 0.1])
@@ -96,16 +96,16 @@ class DynamicWindowPlanner(LocalPlannerBase):
             self.clear_coeff = 0.1
 
             # whether to interpolate for global plan
-            self.flag_interpolate = True
+            self.flag_interpolate = False
 
             # estimated planner running time
-            self.dt_plan = 0.1
+            self.dt_plan = 0.0
         else:
             # load from file
             self.load_configure(config_file_path)
 
         # direction to angle for global plan
-        self.dir_to_ang = np.pi/4.0 * np.array([0, -2.0, 2.0, 4.0, -1.0, 1.0, -3.0, 3.0])
+        self.dir_to_ang = np.pi/4.0 * np.array([-4.0, -2.0, 2.0, 0.0, -3.0, 3.0, -1.0, 1.0])
 
     def load_configure(self, config_file_path):
         pass
@@ -133,6 +133,10 @@ class DynamicWindowPlanner(LocalPlannerBase):
         :param clearance: clearance for collision detection
         :return: array of obstacle distances
         """
+        if self.dyn_obstacles is None:
+            # return None if no obstacle detected
+            return None
+
         dist_obs = np.zeros((len(self.dyn_obstacles),))
         idx = -1
 
@@ -194,7 +198,10 @@ class DynamicWindowPlanner(LocalPlannerBase):
             nav_dir, cost_end = self.global_planner.get_plan(x=(x, y),
                                                              interpolate=self.flag_interpolate)
 
-            cost += np.abs(wrap_to_pi(th - self.dir_to_ang[nav_dir]))
+            if v < 0:
+                cost += np.abs(wrap_to_pi(th + np.pi - self.dir_to_ang[nav_dir]))
+            else:
+                cost += np.abs(wrap_to_pi(th - self.dir_to_ang[nav_dir]))
 
         return cost / self.horizon / np.pi
 
@@ -202,7 +209,7 @@ class DynamicWindowPlanner(LocalPlannerBase):
         """
         Calculates the collision cost given a velocity profile
         """
-        if dist_obs_min >= self.dist_obs_max:
+        if dist_obs_min is None or dist_obs_min >= self.dist_obs_max:
             return 0.0
         else:
             return 1.0 / dist_obs_min
@@ -211,12 +218,18 @@ class DynamicWindowPlanner(LocalPlannerBase):
         """
         Calculate the velocity cost given a velocity profile
         """
-        return v / self.vel_max[0]
+        return self.vel_max[0] - np.abs(v)
 
     def admissible(self, v, omg, dist_obs_min):
         """
         Calculate whether the velocity profile is admissible
         """
+        if np.abs(v) > self.vel_max[0] or np.abs(omg) > self.vel_max[1]:
+            return False
+
+        if dist_obs_min is None:
+            return True
+
         if v > np.sqrt(2.0 * dist_obs_min * self.acc_max[0]) or \
                         omg > np.sqrt(2.0 * dist_obs_min * self.acc_max[1]):
             return False
@@ -251,8 +264,10 @@ class DynamicWindowPlanner(LocalPlannerBase):
         # loop through the dynamic window
         cost_min = 1e6
         cmd_vel = None
-        for v in np.linspace(vel_curr[0] - self.window_size[0], vel_curr[0] + self.window_size[0]):
-            for omg in np.linspace(vel_curr[1] - self.window_size[1], vel_curr[1] + self.window_size[1]):
+        for v in np.arange(vel_curr[0] - self.window_size[0],
+                           vel_curr[0] + self.window_size[0] + self.vel_inc[0], self.vel_inc[0]):
+            for omg in np.arange(vel_curr[1] - self.window_size[1],
+                                 vel_curr[1] + self.window_size[1] + self.vel_inc[1], self.vel_inc[0]):
                 cost = self.cost_sum(v, omg, x_new)
                 if cost < cost_min:
                     cost_min = cost

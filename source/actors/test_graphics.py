@@ -49,11 +49,11 @@ def test_simulated_det_robot():
                              [5.0, 0.0, -1.0],
                              [7.0, 0.0, 0.0]])
 
-    # simulation at 1000hz
+    # simulation at 100hz
     t_curr = 0.0
-    dt = 0.001
+    dt = 0.01
     vel_idx = 0
-    for k in range(8000):
+    for k in range(800):
         # update cmd_vel
         if vel_idx < len(cmd_vel_list) and t_curr >= cmd_vel_list[vel_idx, 0]:
             robot.set_velocity(cmd_vel_list[vel_idx, 1:])
@@ -64,9 +64,9 @@ def test_simulated_det_robot():
         sleep(dt * 0.2)
 
         # plot at lower frequency
-        if k % 50 == 0:
+        if k % 5 == 0:
             robot.plot(ax)
-            plt.pause(dt * 0.5)
+            plt.pause(0.001)
 
         # update simulation time
         t_curr += dt
