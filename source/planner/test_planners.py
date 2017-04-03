@@ -8,6 +8,7 @@ from global_planners import AstarPlanner, NavFuncitonPlanner
 from local_planners import DynamicWindowPlanner
 from source.actors.simulated_human import SimulatedPathFollowingHuman
 from source.actors.simulated_robot import SimulatedDetRobot
+from utils import SimpleObstacle
 
 
 def test_global_planner():
@@ -93,6 +94,18 @@ def test_dwa_planner():
     default_robot_size = 0.2
     robot = SimulatedDetRobot(fp_radius=default_robot_size, pose_init=x_init)
 
+    # create a human
+    human0 = SimulatedPathFollowingHuman(fp_radius=0.2)
+
+    traj = np.array([[0.0, 3.1, 1.5, np.pi / 2.0],
+                     [20.0, 3.1, 3.5, np.pi / 2.0]])
+    human0.load_trajectory(traj=traj)
+
+    # show the robot and human
+    robot.plot(ax)
+    human0.plot(ax)
+    plt.pause(0.1)
+
     # create a local planner
     dt_local_planner = 0.1
     planner_dwa = DynamicWindowPlanner(0.2, 5,
@@ -111,16 +124,30 @@ def test_dwa_planner():
     for k in range(1500):
         # update cmd_vel
         if k % r_local_planner == 0:
+            # update sensor information
+            obs_list = []
+            obs = SimpleObstacle(human0.get_pose(), (0.0, 0.0), 0.2)
+            obs_list.append(obs)
+
+            # run planner
+            planner_dwa.update_obstacles(obs_list)
             cmd_vel = planner_dwa.solve(robot.get_pose(), robot.get_velocity())
-            robot.set_velocity(cmd_vel)
+            if cmd_vel is None:
+                # raise Exception("no solution found!")
+                cmd_vel = (0.0, 0.0)
+                robot.set_velocity(cmd_vel)
+            else:
+                robot.set_velocity(cmd_vel)
 
         # update robot state
         robot.update(dt)
+        human0.update(dt)
         sleep(dt * 0.2)
 
         # plot at lower frequency
         if k % r_plot == 0:
             robot.plot(ax)
+            human0.plot(ax)
             plt.pause(0.001)
 
         # update simulation time

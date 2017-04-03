@@ -7,8 +7,8 @@ class SimulatedPathFollowingHuman(Actor):
     """
     A simulated human object that only follows a given path
     """
-    def __init__(self):
-        Actor.__init__(self)
+    def __init__(self, fp_radius=0.3):
+        Actor.__init__(self, fp_radius)
 
 
 class SimulatedReactiveHuman(Actor):

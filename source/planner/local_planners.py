@@ -75,12 +75,12 @@ class DynamicWindowPlanner(LocalPlannerBase):
         if config_file_path is None:
             # set maximum velocity and acc
             self.vel_max = np.array([0.5, 1.5])
-            self.acc_max = np.array([0.5, 1.0])
+            self.acc_max = np.array([0.5, 1.5])
             self.window_size = self.acc_max * self.dt
 
             # set weights for cost functions
             self.w_costs = {'heading': 2.0,
-                            'collision': 0.2,
+                            'collision': 5.0,
                             'velocity': 1.0}
 
             # velocity discretization
@@ -153,10 +153,11 @@ class DynamicWindowPlanner(LocalPlannerBase):
                 r_hat = distance((obs.x[0], obs.x[1]), (cx, cy))
                 if r_min - obs.radius < r_hat < r_max + obs.radius:
                     # if obstacle intersects path
-                    phi = np.arctan2(obs.x[1] - cy, obs.x[0] - cx) - th - np.pi / 2.0
+                    phi = np.arctan2(obs.x[1] - cy, obs.x[0] - cx) - np.arctan2(x[1] - cy, x[0] - cx)
+                    phi = wrap_to_pi(phi)
                     if phi * omg > 0:
                         # if in the correct direction
-                        dist_obs[idx] = np.abs(r * phi)
+                        dist_obs[idx] = max(TOL, np.abs(r * phi) - self.robot_radius - obs.radius)
                     else:
                         dist_obs[idx] = self.dist_obs_max
                 else:
@@ -175,7 +176,7 @@ class DynamicWindowPlanner(LocalPlannerBase):
                     d = distance(x[0:2], obs.x)
                     d_hat = d * np.sin(th - phi)
                     if np.abs(d_hat) < radius + obs.radius:
-                        dist_obs[idx] = np.abs(d * np.cos(th - phi))
+                        dist_obs[idx] = max(TOL, np.abs(d * np.cos(th - phi)) - self.robot_radius - obs.radius)
                     else:
                         # does not intersect
                         dist_obs[idx] = self.dist_obs_max
@@ -189,21 +190,27 @@ class DynamicWindowPlanner(LocalPlannerBase):
         # calculate positions for the next n time steps
         x, y, th = x_curr
         cost = 0.0
-        cost_end = 0.0
+        _, shortest_start = self.global_planner.get_plan(x=(x, y),
+                                                         interpolate=self.flag_interpolate)
+        shortest_end = 0.0
 
         for k in range(self.horizon):
             x, y, th = motion_update_2d((x, y, th), (v, omg), self.dt)
 
             # calculate cost at the new position
-            nav_dir, cost_end = self.global_planner.get_plan(x=(x, y),
-                                                             interpolate=self.flag_interpolate)
+            nav_dir, shortest_end = self.global_planner.get_plan(x=(x, y),
+                                                                 interpolate=self.flag_interpolate)
 
             if v < 0:
                 cost += np.abs(wrap_to_pi(th + np.pi - self.dir_to_ang[nav_dir]))
             else:
                 cost += np.abs(wrap_to_pi(th - self.dir_to_ang[nav_dir]))
 
-        return cost / self.horizon / np.pi
+        if shortest_end < 0:
+            shortest_end = shortest_start + 0.5
+
+        return cost / self.horizon / np.pi + 1.0 + \
+               (shortest_end - shortest_start) / (self.vel_max[0] * self.dt * self.horizon)
 
     def cost_collision(self, dist_obs_min):
         """
@@ -230,8 +237,8 @@ class DynamicWindowPlanner(LocalPlannerBase):
         if dist_obs_min is None:
             return True
 
-        if v > np.sqrt(2.0 * dist_obs_min * self.acc_max[0]) or \
-                        omg > np.sqrt(2.0 * dist_obs_min * self.acc_max[1]):
+        if np.abs(v) > np.sqrt(2.0 * dist_obs_min * self.acc_max[0]) or \
+                        np.abs(omg) > np.sqrt(2.0 * dist_obs_min * self.acc_max[1]):
             return False
         return True
 
@@ -262,7 +269,7 @@ class DynamicWindowPlanner(LocalPlannerBase):
         x_new = motion_update_2d(x_curr, vel_curr, self.dt_plan)
 
         # loop through the dynamic window
-        cost_min = 1e6
+        cost_min = self.cost_max
         cmd_vel = None
         for v in np.arange(vel_curr[0] - self.window_size[0],
                            vel_curr[0] + self.window_size[0] + self.vel_inc[0], self.vel_inc[0]):

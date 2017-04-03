@@ -18,7 +18,7 @@ class SimulatedDetRobot(Actor):
 
         # set properties
         if properties is None:
-            self.acc_max = np.array([0.5, 1.0])
+            self.acc_max = np.array([0.5, 1.5])
             self.vel_dead_zone = np.array([0.02, 0.05])
         else:
             pass

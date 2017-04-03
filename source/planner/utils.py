@@ -42,3 +42,11 @@ def motion_update_2d(x_curr, vel_curr, dt):
         y_new = y + v * np.sin(th) * dt
 
     return x_new, y_new, th_new
+
+
+# simple obstacle class
+class SimpleObstacle:
+    def __init__(self, pose, vel, radius):
+        self.x = pose[0:2]
+        self.vel = vel
+        self.radius = radius
