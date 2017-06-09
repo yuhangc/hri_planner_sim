@@ -54,7 +54,7 @@ class GlobalPlannerBase:
         if x_goal is not None:
             self._set_x_goal(x_goal)
         if occupancy is not None:
-            self._update_occupancy()
+            self._update_occupancy(occupancy)
 
     def is_free(self, x):
         """

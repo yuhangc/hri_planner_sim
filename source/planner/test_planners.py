@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 from time import sleep
 
-from grid_map import StochOccupancyGrid2D
+from grid_map import StochOccupancyGrid2DLazy
 from global_planners import AstarPlanner, NavFuncitonPlanner
 from local_planners import DynamicWindowPlanner
 from source.actors.simulated_human import SimulatedPathFollowingHuman
@@ -28,10 +28,10 @@ def test_global_planner():
     x_goal = (8, 8)
 
     # create a 2D stochastic occupancy grid
-    occupancy = StochOccupancyGrid2D(map_resolution, int(width / map_resolution), int(height / map_resolution),
-                                     0, 0, int(plan_resolution / map_resolution) * 4, probs)
+    occupancy = StochOccupancyGrid2DLazy(map_resolution, int(width / map_resolution), int(height / map_resolution),
+                                     0, 0, int(plan_resolution / map_resolution) * 1, probs)
     occupancy.from_obstacles(obstacles)
-    occupancy.init_map_free()
+    occupancy.compute_free_states()
 
     # create a nav function planner and an astar planner
     # planner_astar = AstarPlanner((0, 0), (10, 10), x_init, x_goal, occupancy)
@@ -62,10 +62,10 @@ def test_dwa_planner():
     probs = -np.ones((int(width * height / map_resolution ** 2 + 0.5),))
 
     # create a 2D stochastic occupancy grid
-    occupancy = StochOccupancyGrid2D(map_resolution, int(width / map_resolution), int(height / map_resolution),
-                                     0, 0, int(plan_resolution / map_resolution) * 4, probs)
+    occupancy = StochOccupancyGrid2DLazy(map_resolution, int(width / map_resolution), int(height / map_resolution),
+                                     0, 0, int(plan_resolution / map_resolution) * 1, probs)
     occupancy.from_obstacles(obstacles)
-    occupancy.init_map_free()
+    occupancy.compute_free_states(0.2)
 
     # set goals
     x_init = (0.75, 0.75, 0.0)
